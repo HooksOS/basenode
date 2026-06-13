@@ -2,3 +2,10 @@
 /reth-data/
 /dependency_updater/dependency_updater
 .DS_Store
+
+# Production secrets — never commit. Source from a secret manager in prod.
+.env.production
+.env.production.local
+*.local
+/data/
+ops/monitoring/.env

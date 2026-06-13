@@ -1,0 +1,27 @@
+groups:
+  - name: base-node
+    rules:
+      - alert: NodeScrapeDown
+        expr: up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} metrics endpoint is down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} ({{ $labels.component }})."
+
+      # Reth exposes sync height; alert if it stops advancing for 5m.
+      # Adjust the metric name to your reth version if needed (see /metrics output).
+      - alert: ExecutionSyncStalled
+        expr: increase(reth_sync_checkpoint[5m]) == 0 and on() up{job="reth-execution"} == 1
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Execution client sync stalled"
+          description: "Reth sync height has not advanced in 5 minutes — the launchpad will serve stale data."
+
+      - alert: HostDiskFillingUp
+        expr: 1 == 0  # placeholder: wire node_exporter, then alert on disk < 15% free
+        labels: { severity: warning }
+        annotations:
+          summary: "Disk space low on node host"
+          description: "Add node_exporter and replace this expr with a real disk-free check."

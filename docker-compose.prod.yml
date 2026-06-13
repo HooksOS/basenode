@@ -1,0 +1,52 @@
+# Production hardening overlay. Use together with the base compose file:
+#
+#   docker compose --env-file .env.production \
+#     -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# This file only ADDS safe operational settings (log rotation, healthchecks,
+# resource ceilings, graceful shutdown). Network exposure is controlled by the
+# HOST FIREWALL (ops/firewall/ufw.sh), which is the authoritative gate for a
+# mainnet node — do not rely on port bindings alone.
+
+services:
+  execution:
+    # Structured JSON logs are already emitted by the node; cap disk usage.
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+    stop_grace_period: 5m
+    # Reth wants a high file-descriptor ceiling for its many static files.
+    ulimits:
+      nofile:
+        soft: 200000
+        hard: 200000
+    healthcheck:
+      # Verifies the RPC is up AND returning a non-genesis block.
+      test:
+        - "CMD-SHELL"
+        - >-
+          curl -s -X POST localhost:8545 -H 'Content-Type: application/json'
+          --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+          | grep -q '"result"' || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30m
+
+  node:
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+    stop_grace_period: 5m
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "curl -sf localhost:7300/metrics >/dev/null || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
